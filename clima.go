@@ -22,6 +22,12 @@ type OpenMeteoResponse struct {
 	} `json:"current_weather"`
 }
 
+type Temperatura struct {
+	TempC float64 `json:"temp_C"`
+	TempF float64 `json:"temp_F"`
+	TempK float64 `json:"temp_K"`
+}
+
 func fetchCoordinates(ctx context.Context, cep, token string) (*CepAbertoResponse, error) {
 	url := fmt.Sprintf("https://www.cepaberto.com/api/v3/cep?cep=%s", cep)
 
