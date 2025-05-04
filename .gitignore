@@ -1,6 +1,6 @@
-go-rate-limiter
-limiter
+clima
 app
+tmp/
 
 __debug*
 _debug*
