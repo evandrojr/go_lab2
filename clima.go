@@ -89,7 +89,7 @@ func getTemperature(latStr, lonStr string) (float64, error) {
 func main() {
 	router := gin.Default()
 
-	router.GET("/coordenadas/:cep", func(c *gin.Context) {
+	router.GET("/temp/:cep", func(c *gin.Context) {
 		cep := c.Param("cep")
 
 		if len(cep) != 8 {
