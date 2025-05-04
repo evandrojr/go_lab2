@@ -5,18 +5,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
-// Estrutura para a resposta da API do CEP Aberto
 type CepAbertoResponse struct {
 	Latitude  string `json:"latitude"`
 	Longitude string `json:"longitude"`
 }
 
-// Função para buscar coordenadas a partir do CEP
+type OpenMeteoResponse struct {
+	CurrentWeather struct {
+		Temperature float64 `json:"temperature"`
+	} `json:"current_weather"`
+}
+
 func fetchCoordinates(ctx context.Context, cep, token string) (*CepAbertoResponse, error) {
 	url := fmt.Sprintf("https://www.cepaberto.com/api/v3/cep?cep=%s", cep)
 
@@ -46,22 +51,54 @@ func fetchCoordinates(ctx context.Context, cep, token string) (*CepAbertoRespons
 	return &data, nil
 }
 
+func getTemperature(latStr, lonStr string) (float64, error) {
+	lat, err := strconv.ParseFloat(latStr, 64)
+	if err != nil {
+		return 0, fmt.Errorf("latitude inválida: %w", err)
+	}
+
+	lon, err := strconv.ParseFloat(lonStr, 64)
+	if err != nil {
+		return 0, fmt.Errorf("longitude inválida: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	url := fmt.Sprintf("https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f&current_weather=true", lat, lon)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return 0, fmt.Errorf("erro ao criar requisição: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, fmt.Errorf("erro ao realizar requisição: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var data OpenMeteoResponse
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return 0, fmt.Errorf("erro ao decodificar resposta: %w", err)
+	}
+
+	return data.CurrentWeather.Temperature, nil
+}
+
 func main() {
 	router := gin.Default()
 
 	router.GET("/coordenadas/:cep", func(c *gin.Context) {
 		cep := c.Param("cep")
 
-		// Validação simples do CEP
 		if len(cep) != 8 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "CEP inválido. Use exatamente 8 dígitos numéricos."})
 			return
 		}
 
-		// Token de acesso à API do CEP Aberto
-		token := "a9ff0b35dd43008c20bbc78465042df9" // Substitua pelo seu token
+		token := "a9ff0b35dd43008c20bbc78465042df9"
 
-		// Contexto com timeout de 3 segundos
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 6*time.Second)
 		defer cancel()
 
@@ -71,7 +108,13 @@ func main() {
 			return
 		}
 
-		c.JSON(http.StatusOK, coordenadas)
+		temperatura, err := getTemperature(coordenadas.Latitude, coordenadas.Longitude)
+		if err != nil {
+			c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, temperatura)
 	})
 
 	router.Run(":8080")
