@@ -22,6 +22,9 @@ FROM gcr.io/distroless/base-debian11
 # Definir o diretório de trabalho
 WORKDIR /root/
 
+# Definir variável de ambiente
+ENV API_TOKEN=a9ff0b35dd43008c20bbc78465042df9
+
 # Copiar o binário compilado
 COPY --from=builder /app/go_lab1 .
 
