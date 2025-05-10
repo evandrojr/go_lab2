@@ -116,6 +116,9 @@ func main() {
 	// Carrega variáveis do .env
 	_ = godotenv.Load()
 
+	token := os.Getenv("API_TOKEN")
+	fmt.Println("[DEBUG] API_TOKEN carregado:", token)
+
 	router := gin.Default()
 
 	router.GET("/temp/:cep", func(c *gin.Context) {
