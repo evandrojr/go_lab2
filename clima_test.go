@@ -24,7 +24,21 @@ func TestCoordenadas(t *testing.T) {
 }
 
 func TestAPI_Success(t *testing.T) {
-	// Este teste assume que o token e as dependências externas estão funcionando
+	// Mock das funções externas
+	origFetchCoordinates := fetchCoordinates
+	origGetTemperature := getTemperature
+	defer func() {
+		fetchCoordinates = origFetchCoordinates
+		getTemperature = origGetTemperature
+	}()
+
+	fetchCoordinates = func(ctx context.Context, cep, token string) (*CepAbertoResponse, error) {
+		return &CepAbertoResponse{Latitude: "-23.5505", Longitude: "-46.6333"}, nil
+	}
+	getTemperature = func(latStr, lonStr string) (float64, error) {
+		return 25.0, nil
+	}
+
 	req := httptest.NewRequest("GET", "/temp/01001000", nil)
 	w := httptest.NewRecorder()
 
