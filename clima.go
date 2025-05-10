@@ -28,6 +28,18 @@ type Temperatura struct {
 	TempK float64 `json:"temp_K"`
 }
 
+func validarCEP(cep string) bool {
+	if len(cep) != 8 {
+		return false
+	}
+	for _, c := range cep {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 func fetchCoordinates(ctx context.Context, cep, token string) (*CepAbertoResponse, error) {
 	url := fmt.Sprintf("https://www.cepaberto.com/api/v3/cep?cep=%s", cep)
 
@@ -49,9 +61,16 @@ func fetchCoordinates(ctx context.Context, cep, token string) (*CepAbertoRespons
 		return nil, fmt.Errorf("resposta inesperada da API: %s", resp.Status)
 	}
 
+	// Nessa API quando o CEP não é encontrado, a resposta é 200 e o corpo é vazio.
 	var data CepAbertoResponse
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return nil, fmt.Errorf("erro ao decodificar resposta: %w", err)
+
+		// ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+		return nil, fmt.Errorf("can not find zipcode")
+	}
+
+	if data.Latitude == "" || data.Longitude == "" {
+		return nil, fmt.Errorf("can not find zipcode")
 	}
 
 	return &data, nil
@@ -98,8 +117,8 @@ func main() {
 	router.GET("/temp/:cep", func(c *gin.Context) {
 		cep := c.Param("cep")
 
-		if len(cep) != 8 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "CEP inválido. Use exatamente 8 dígitos numéricos."})
+		if !validarCEP(cep) {
+			c.JSON(422, gin.H{"error": "invalid zipcode."})
 			return
 		}
 
@@ -110,8 +129,10 @@ func main() {
 
 		coordenadas, err := fetchCoordinates(ctx, cep, token)
 		if err != nil {
-			c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
-			return
+			if err.Error() == "can not find zipcode" {
+				c.JSON(http.StatusNotFound, gin.H{"error": "can not find zipcode"})
+				return
+			}
 		}
 
 		temperatura, err := getTemperature(coordenadas.Latitude, coordenadas.Longitude)
@@ -120,7 +141,12 @@ func main() {
 			return
 		}
 
-		c.JSON(http.StatusOK, temperatura)
+		temp := Temperatura{
+			TempC: temperatura,
+			TempF: temperatura*1.8 + 32,
+			TempK: temperatura + 273,
+		}
+		c.JSON(http.StatusOK, temp)
 	})
 
 	router.Run(":8080")

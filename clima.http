@@ -1,0 +1,17 @@
+### Requisição com CEP válido
+GET http://localhost:8080/temp/01001000
+Accept: application/json
+
+### Requisição com CEP inválido
+GET http://localhost:8080/temp/123
+Accept: application/json
+
+### Exemplo de requisição incluindo o token (caso precise passar via header)
+GET http://localhost:8080/temp/01001000
+Accept: application/json
+Authorization: Token a9ff0b35dd43008c20bbc78465042df9
+
+### Consulta de CEP usando CepAberto
+GET https://www.cepaberto.com/api/v3/cep?cep=99898989998
+Accept: application/json
+Authorization: Token a9ff0b35dd43008c20bbc78465042df9
