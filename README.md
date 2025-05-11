@@ -1,5 +1,10 @@
 # Clima por CEP
 
+Execução no GCR:
+
+Ex:
+https://go-lab-1-982252545952.us-central1.run.app/temp/41830460
+
 Este projeto é um serviço em Go que recebe um CEP, identifica a cidade e retorna o clima atual (temperatura em Celsius, Fahrenheit e Kelvin).
 
 ## Pré-requisitos
