@@ -155,21 +155,24 @@ func main() {
 	router := gin.Default()
 	router.Use(otelgin.Middleware("servico-a"))
 
-	router.POST("/temp/:cep", func(c *gin.Context) {
-		cep := c.Param("cep")
-
-		if !validarCEP(cep) {
-			c.JSON(422, gin.H{"error": "invalid zipcode."})
+	router.POST("/temp", func(c *gin.Context) {
+		var req struct {
+			Cep string `json:"cep"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(422, gin.H{"error": "invalid zipcode"})
 			return
 		}
-
+		if !validarCEP(req.Cep) {
+			c.JSON(422, gin.H{"error": "invalid zipcode"})
+			return
+		}
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 6*time.Second)
 		defer cancel()
-
 		tr := otel.Tracer("servico-a")
 		var span oteltrace.Span
 		ctx, span = tr.Start(ctx, "chamada-servico-b")
-		temp, err := fetchTemp(ctx, cep, token)
+		temp, err := fetchTemp(ctx, req.Cep, token)
 		span.End()
 		if err != nil {
 			if err.Error() == "can not find zipcode" {

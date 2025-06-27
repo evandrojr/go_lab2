@@ -35,11 +35,52 @@
 
   - **Exemplo de requisição para Serviço A:**
     ```sh
-    curl -X POST http://localhost:8080/temp/41830460
+    curl -X POST http://localhost:8080/temp \
+      -H 'Content-Type: application/json' \
+      -d '{"cep": "41830460"}'
     ```
+    **Resposta esperada (HTTP 200):**
+    ```json
+    {
+      "city": "Salvador",
+      "temp_C": 25.3,
+      "temp_F": 77.5,
+      "temp_K": 298.5
+    }
+    ```
+    
+    **Exemplo de erro (CEP inválido, HTTP 422):**
+    ```json
+    { "error": "invalid zipcode" }
+    ```
+    
+    **Exemplo de erro (CEP não encontrado, HTTP 404):**
+    ```json
+    { "error": "can not find zipcode" }
+    ```
+
   - **Exemplo de requisição para Serviço B:**
     ```sh
     curl http://localhost:8081/temp/41830460
+    ```
+    **Resposta esperada (HTTP 200):**
+    ```json
+    {
+      "city": "Salvador",
+      "temp_C": 25.3,
+      "temp_F": 77.5,
+      "temp_K": 298.5
+    }
+    ```
+    
+    **Exemplo de erro (CEP inválido, HTTP 422):**
+    ```json
+    { "error": "invalid zipcode" }
+    ```
+    
+    **Exemplo de erro (CEP não encontrado, HTTP 404):**
+    ```json
+    { "error": "can not find zipcode" }
     ```
 
 ## Observabilidade (Tracing)
