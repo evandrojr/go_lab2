@@ -1,9 +1,14 @@
-### Requisição com CEP válido
-GET http://localhost:8080/temp/01001000
+### Requisição com CEP válido serviço A
+POST http://localhost:8080/temp/41830460
+Accept: application/json
+
+
+### Requisição com CEP válido serviço B
+GET http://localhost:8081/temp/41830460
 Accept: application/json
 
 ### Requisição com CEP inválido
-GET http://localhost:8080/temp/123
+POST http://localhost:8080/temp/123
 Accept: application/json
 
 ### Exemplo de requisição incluindo o token (caso precise passar via header)

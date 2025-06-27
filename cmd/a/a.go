@@ -43,7 +43,7 @@ func validarCEP(cep string) bool {
 }
 
 var fetchTemp = func(ctx context.Context, cep, token string) (*CepAbertoResponse, error) {
-	url := fmt.Sprintf("http://localhost/temp/%s", cep)
+	url := fmt.Sprintf("http://localhost:8081/temp/%s", cep)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
