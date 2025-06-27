@@ -1,4 +1,3 @@
-
 services:
   zipkin:
     image: openzipkin/zipkin
@@ -8,8 +7,8 @@ services:
 
   servico-b:
     build:
-      context: ./cmd/b
-      dockerfile: ../../Dockerfile
+      context: .
+      dockerfile: Dockerfile
     container_name: servico-b
     environment:
       - API_TOKEN=${API_TOKEN}
@@ -21,8 +20,8 @@ services:
 
   servico-a:
     build:
-      context: ./cmd/a
-      dockerfile: ../../Dockerfile
+      context: .
+      dockerfile: Dockerfile
     container_name: servico-a
     environment:
       - API_TOKEN=${API_TOKEN}

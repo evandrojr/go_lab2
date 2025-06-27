@@ -11,15 +11,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	go_otlp "go.opentelemetry.io/otel/exporters/zipkin"
-	oteltrace "go.opentelemetry.io/otel/trace"
 	otelgin "go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	otelhttp "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	otel "go.opentelemetry.io/otel"
+	go_otlp "go.opentelemetry.io/otel/exporters/zipkin"
 	otelprop "go.opentelemetry.io/otel/propagation"
 	otelresource "go.opentelemetry.io/otel/sdk/resource"
 	otelsdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
-	otelhttp "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 type CepAbertoResponse struct {
@@ -56,7 +56,7 @@ func validarCEP(cep string) bool {
 }
 
 func initTracer() (func(), error) {
-	zipkinURL := "http://localhost:9411/api/v2/spans"
+	zipkinURL := "http://zipkin:9411/api/v2/spans"
 	exporter, err := go_otlp.New(zipkinURL)
 	if err != nil {
 		return nil, err
@@ -76,7 +76,7 @@ func initTracer() (func(), error) {
 
 // Instrumenta fetchTemp para propagação do contexto OTEL
 var fetchTemp = func(ctx context.Context, cep, token string) (*Temperatura, error) {
-	url := fmt.Sprintf("http://localhost:8081/temp/%s", cep)
+	url := fmt.Sprintf("http://servico-b:8081/temp/%s", cep)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {

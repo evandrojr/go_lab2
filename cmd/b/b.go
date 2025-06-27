@@ -125,7 +125,7 @@ var getTemperature = func(latStr, lonStr string) (float64, error) {
 }
 
 func initTracer() (func(), error) {
-	zipkinURL := "http://localhost:9411/api/v2/spans"
+	zipkinURL := "http://zipkin:9411/api/v2/spans"
 	exporter, err := go_otlp.New(zipkinURL)
 	if err != nil {
 		return nil, err

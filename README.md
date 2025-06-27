@@ -1,70 +1,53 @@
-# Clima por CEP
-
-Execução no GCR:
-
-Ex:
-https://go-lab-1-982252545952.us-central1.run.app/temp/41830460
-
-Este projeto é um serviço em Go que recebe um CEP, identifica a cidade e retorna o clima atual (temperatura em Celsius, Fahrenheit e Kelvin).
+# Projeto Clima - Documentação de Ambiente de Desenvolvimento
 
 ## Pré-requisitos
-- Go 1.18+
-- Docker (opcional, para rodar via container)
+- Docker e Docker Compose instalados
+- Go 1.20+ instalado (opcional, apenas para builds locais)
 
-## Configuração
+## Configuração de variáveis de ambiente
+
 1. Copie o arquivo `.env.example` para `.env` na raiz do projeto:
    ```sh
    cp .env.example .env
    ```
-2. Edite o arquivo `.env` e coloque o seu token da API CepAberto:
-   ```env
-   API_TOKEN=a9ff0b35dd43008c20bbc78465042df9
+2. Edite o arquivo `.env` e configure o valor da variável `API_TOKEN` conforme necessário. Mas já deixei um que funciona.
+
+## Subindo o ambiente com Docker Compose
+
+1. **Na raiz do projeto, execute:**
+   ```sh
+   docker compose up --build
+   ```
+   Isso irá:
+   - Subir o Zipkin em http://localhost:9411
+   - Subir o Serviço B em http://localhost:8081
+   - Subir o Serviço A em http://localhost:8080
+
+2. **Para parar e remover os containers:**
+   ```sh
+   ./stop-all.sh
    ```
 
-## Executando localmente
 
-### Usando Go
-```sh
-go run clima.go
-```
-O serviço estará disponível em http://localhost:8080
+## Testando a API
 
-### Usando Docker
-```sh
-docker build -t clima .
-docker run --env-file .env -p 8080:8080 clima
-```
+- Use o arquivo `clima.http` (VSCode REST Client) ou ferramentas como curl/Postman:
 
-## Como usar
-Faça uma requisição GET para:
-```
-GET /temp/{cep}
-```
-Exemplo:
-```
-curl http://localhost:8080/temp/01001000
-```
+  - **Exemplo de requisição para Serviço A:**
+    ```sh
+    curl -X POST http://localhost:8080/temp/41830460
+    ```
+  - **Exemplo de requisição para Serviço B:**
+    ```sh
+    curl http://localhost:8081/temp/41830460
+    ```
 
-## Respostas
-- **200**: Sucesso
-  ```json
-  { "temp_C": 28.5, "temp_F": 83.3, "temp_K": 301.1 }
-  ```
-- **422**: CEP inválido
-  ```json
-  { "error": "invalid zipcode." }
-  ```
-- **404**: CEP não encontrado
-  ```json
-  { "error": "can not find zipcode" }
-  ```
-- **500**: Token da API não configurado
-  ```json
-  { "error": "API token not configured" }
-  ```
+## Observabilidade (Tracing)
 
-## Testes
-Para rodar os testes:
-```sh
-go test -v
-```
+- Acesse o Zipkin em [http://localhost:9411](http://localhost:9411)
+- Faça requisições para os serviços e clique em "Run Query" para visualizar os traces e spans distribuídos.
+
+---
+
+**Dúvidas ou problemas?**
+Consulte os logs dos containers para debug.
