@@ -16,6 +16,9 @@ import (
 type CepAbertoResponse struct {
 	Latitude  string `json:"latitude"`
 	Longitude string `json:"longitude"`
+	Cidade    struct {
+		Nome string `json:"nome"`
+	} `json:"cidade"`
 }
 
 type OpenMeteoResponse struct {
@@ -25,6 +28,7 @@ type OpenMeteoResponse struct {
 }
 
 type Temperatura struct {
+	City  string  `json:"city"`
 	TempC float64 `json:"temp_C"`
 	TempF float64 `json:"temp_F"`
 	TempK float64 `json:"temp_K"`
@@ -155,6 +159,7 @@ func main() {
 		}
 
 		temp := Temperatura{
+			City:  coordenadas.Cidade.Nome,
 			TempC: temperatura,
 			TempF: temperatura*1.8 + 32,
 			TempK: temperatura + 273,
