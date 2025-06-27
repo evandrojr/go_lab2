@@ -11,7 +11,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/kr/pretty"
+	go_otlp "go.opentelemetry.io/otel/exporters/zipkin"
+	oteltrace "go.opentelemetry.io/otel/trace"
+	otelgin "go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	otel "go.opentelemetry.io/otel"
+	otelprop "go.opentelemetry.io/otel/propagation"
+	otelresource "go.opentelemetry.io/otel/sdk/resource"
+	otelsdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
+	otelhttp "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type CepAbertoResponse struct {
@@ -47,6 +55,26 @@ func validarCEP(cep string) bool {
 	return true
 }
 
+func initTracer() (func(), error) {
+	zipkinURL := "http://localhost:9411/api/v2/spans"
+	exporter, err := go_otlp.New(zipkinURL)
+	if err != nil {
+		return nil, err
+	}
+	resource := otelresource.NewWithAttributes(
+		semconv.SchemaURL,
+		semconv.ServiceNameKey.String("servico-a"),
+	)
+	provider := otelsdktrace.NewTracerProvider(
+		otelsdktrace.WithBatcher(exporter),
+		otelsdktrace.WithResource(resource),
+	)
+	otel.SetTracerProvider(provider)
+	otel.SetTextMapPropagator(otelprop.TraceContext{})
+	return func() { _ = provider.Shutdown(context.Background()) }, nil
+}
+
+// Instrumenta fetchTemp para propagação do contexto OTEL
 var fetchTemp = func(ctx context.Context, cep, token string) (*Temperatura, error) {
 	url := fmt.Sprintf("http://localhost:8081/temp/%s", cep)
 
@@ -55,7 +83,7 @@ var fetchTemp = func(ctx context.Context, cep, token string) (*Temperatura, erro
 		return nil, fmt.Errorf("erro ao criar requisição: %w", err)
 	}
 
-	client := &http.Client{}
+	client := &http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao realizar requisição: %w", err)
@@ -71,7 +99,6 @@ var fetchTemp = func(ctx context.Context, cep, token string) (*Temperatura, erro
 	if err := json.NewDecoder(resp.Body).Decode(&temp); err != nil {
 		return nil, fmt.Errorf("erro ao decodificar resposta: %w", err)
 	}
-	pretty.Println("@@@@@@@@@@@@@@", temp)
 	return &temp, nil
 
 	// return &Temperatura{}, nil
@@ -116,10 +143,17 @@ func main() {
 	// Carrega variáveis do .env
 	_ = godotenv.Load()
 
+	shutdown, err := initTracer()
+	if err != nil {
+		panic(err)
+	}
+	defer shutdown()
+
 	token := os.Getenv("API_TOKEN")
 	fmt.Println("[DEBUG] API_TOKEN carregado:", token)
 
 	router := gin.Default()
+	router.Use(otelgin.Middleware("servico-a"))
 
 	router.POST("/temp/:cep", func(c *gin.Context) {
 		cep := c.Param("cep")
@@ -132,7 +166,11 @@ func main() {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 6*time.Second)
 		defer cancel()
 
+		tr := otel.Tracer("servico-a")
+		var span oteltrace.Span
+		ctx, span = tr.Start(ctx, "chamada-servico-b")
 		temp, err := fetchTemp(ctx, cep, token)
+		span.End()
 		if err != nil {
 			if err.Error() == "can not find zipcode" {
 				c.JSON(http.StatusNotFound, gin.H{"error": "can not find zipcode"})
@@ -141,18 +179,6 @@ func main() {
 			c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 			return
 		}
-
-		// temperatura, err := getTemperature(coordenadas.Latitude, coordenadas.Longitude)
-		// if err != nil {
-		// 	c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
-		// 	return
-		// }
-
-		// temp := Temperatura{
-		// 	TempC: temperatura,
-		// 	TempF: temperatura*1.8 + 32,
-		// 	TempK: temperatura + 273,
-		// }
 		c.JSON(http.StatusOK, *temp)
 	})
 

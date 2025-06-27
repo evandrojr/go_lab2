@@ -13,8 +13,10 @@ RUN go mod tidy
 # Copiar o código-fonte
 COPY . .
 
-# Compilar o aplicativo
-RUN CGO_ENABLED=0 GOOS=linux go build -o go_lab1 .
+# Build para Serviço B
+RUN CGO_ENABLED=0 GOOS=linux go build -o servico-b ./cmd/b
+# Build para Serviço A
+RUN CGO_ENABLED=0 GOOS=linux go build -o servico-a ./cmd/a
 
 # Etapa de execução
 FROM gcr.io/distroless/base-debian11
@@ -25,11 +27,12 @@ WORKDIR /root/
 # Definir variável de ambiente
 ENV API_TOKEN=a9ff0b35dd43008c20bbc78465042df9
 
-# Copiar o binário compilado
-COPY --from=builder /app/go_lab1 .
+# Copia ambos os binários
+COPY --from=builder /app/servico-b ./servico-b
+COPY --from=builder /app/servico-a ./servico-a
 
 # Expor a porta que o aplicativo irá escutar
-EXPOSE 8080
+EXPOSE 8080 8081
 
-# Comando para iniciar o aplicativo
-CMD ["/root/go_lab1"]
+# O entrypoint será definido no docker-compose.yml
+CMD ["/bin/sh"]

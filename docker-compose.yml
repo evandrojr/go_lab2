@@ -1,9 +1,34 @@
+
 services:
-  app:
-    image: golang:1.24
-    working_dir: /app
-    volumes:
-      - ./:/app
-    command: bash -c "go mod tidy && go test -v ./..."
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: zipkin
+    ports:
+      - "9411:9411"
+
+  servico-b:
+    build:
+      context: ./cmd/b
+      dockerfile: ../../Dockerfile
+    container_name: servico-b
     environment:
-      - GIN_MODE=release
+      - API_TOKEN=${API_TOKEN}
+    ports:
+      - "8081:8081"
+    depends_on:
+      - zipkin
+    entrypoint: ["/root/servico-b"]
+
+  servico-a:
+    build:
+      context: ./cmd/a
+      dockerfile: ../../Dockerfile
+    container_name: servico-a
+    environment:
+      - API_TOKEN=${API_TOKEN}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - servico-b
+      - zipkin
+    entrypoint: ["/root/servico-a"]

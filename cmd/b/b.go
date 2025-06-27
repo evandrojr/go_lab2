@@ -11,6 +11,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	go_otlp "go.opentelemetry.io/otel/exporters/zipkin"
+	oteltrace "go.opentelemetry.io/otel/trace"
+	otelgin "go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	otel "go.opentelemetry.io/otel"
+	otelprop "go.opentelemetry.io/otel/propagation"
+	otelresource "go.opentelemetry.io/otel/sdk/resource"
+	otelsdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 )
 
 type CepAbertoResponse struct {
@@ -116,14 +124,40 @@ var getTemperature = func(latStr, lonStr string) (float64, error) {
 	return data.CurrentWeather.Temperature, nil
 }
 
+func initTracer() (func(), error) {
+	zipkinURL := "http://localhost:9411/api/v2/spans"
+	exporter, err := go_otlp.New(zipkinURL)
+	if err != nil {
+		return nil, err
+	}
+	resource := otelresource.NewWithAttributes(
+		semconv.SchemaURL,
+		semconv.ServiceNameKey.String("servico-b"),
+	)
+	provider := otelsdktrace.NewTracerProvider(
+		otelsdktrace.WithBatcher(exporter),
+		otelsdktrace.WithResource(resource),
+	)
+	otel.SetTracerProvider(provider)
+	otel.SetTextMapPropagator(otelprop.TraceContext{})
+	return func() { _ = provider.Shutdown(context.Background()) }, nil
+}
+
 func main() {
 	// Carrega variáveis do .env
 	_ = godotenv.Load()
+
+	shutdown, err := initTracer()
+	if err != nil {
+		panic(err)
+	}
+	defer shutdown()
 
 	token := os.Getenv("API_TOKEN")
 	fmt.Println("[DEBUG] API_TOKEN carregado:", token)
 
 	router := gin.Default()
+	router.Use(otelgin.Middleware("servico-b"))
 
 	router.GET("/temp/:cep", func(c *gin.Context) {
 		cep := c.Param("cep")
@@ -142,7 +176,11 @@ func main() {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 6*time.Second)
 		defer cancel()
 
+		tr := otel.Tracer("servico-b")
+		var span oteltrace.Span
+		ctx, span = tr.Start(ctx, "buscar-coordenadas-cep")
 		coordenadas, err := fetchCoordinates(ctx, cep, token)
+		span.End()
 		if err != nil {
 			if err.Error() == "can not find zipcode" {
 				c.JSON(http.StatusNotFound, gin.H{"error": "can not find zipcode"})
@@ -152,7 +190,9 @@ func main() {
 			return
 		}
 
+		_, span2 := tr.Start(ctx, "buscar-temperatura")
 		temperatura, err := getTemperature(coordenadas.Latitude, coordenadas.Longitude)
+		span2.End()
 		if err != nil {
 			c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 			return
