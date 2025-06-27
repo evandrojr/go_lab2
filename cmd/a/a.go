@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/kr/pretty"
 )
 
 type CepAbertoResponse struct {
@@ -42,7 +43,7 @@ func validarCEP(cep string) bool {
 	return true
 }
 
-var fetchTemp = func(ctx context.Context, cep, token string) (*CepAbertoResponse, error) {
+var fetchTemp = func(ctx context.Context, cep, token string) (*Temperatura, error) {
 	url := fmt.Sprintf("http://localhost:8081/temp/%s", cep)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -61,18 +62,15 @@ var fetchTemp = func(ctx context.Context, cep, token string) (*CepAbertoResponse
 		return nil, fmt.Errorf("resposta inesperada da API: %s", resp.Status)
 	}
 
-	// Nessa API quando o CEP não é encontrado, a resposta é 200 e o corpo é vazio.
-	var data CepAbertoResponse
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		// ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
-		return nil, fmt.Errorf("can not find zipcode")
+	// Faça o parse da resposta em uma estrutura de Temperatura
+	var temp Temperatura
+	if err := json.NewDecoder(resp.Body).Decode(&temp); err != nil {
+		return nil, fmt.Errorf("erro ao decodificar resposta: %w", err)
 	}
+	pretty.Println("@@@@@@@@@@@@@@", temp)
+	return &temp, nil
 
-	if data.Latitude == "" || data.Longitude == "" {
-		return nil, fmt.Errorf("can not find zipcode")
-	}
-
-	return &data, nil
+	// return &Temperatura{}, nil
 }
 
 var getTemperature = func(latStr, lonStr string) (float64, error) {
@@ -130,7 +128,7 @@ func main() {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 6*time.Second)
 		defer cancel()
 
-		coordenadas, err := fetchTemp(ctx, cep, token)
+		temp, err := fetchTemp(ctx, cep, token)
 		if err != nil {
 			if err.Error() == "can not find zipcode" {
 				c.JSON(http.StatusNotFound, gin.H{"error": "can not find zipcode"})
@@ -140,18 +138,18 @@ func main() {
 			return
 		}
 
-		temperatura, err := getTemperature(coordenadas.Latitude, coordenadas.Longitude)
-		if err != nil {
-			c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
-			return
-		}
+		// temperatura, err := getTemperature(coordenadas.Latitude, coordenadas.Longitude)
+		// if err != nil {
+		// 	c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+		// 	return
+		// }
 
-		temp := Temperatura{
-			TempC: temperatura,
-			TempF: temperatura*1.8 + 32,
-			TempK: temperatura + 273,
-		}
-		c.JSON(http.StatusOK, temp)
+		// temp := Temperatura{
+		// 	TempC: temperatura,
+		// 	TempF: temperatura*1.8 + 32,
+		// 	TempK: temperatura + 273,
+		// }
+		c.JSON(http.StatusOK, *temp)
 	})
 
 	router.Run(":8080")
